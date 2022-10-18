@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <memory>
+#include <random>
 #include <vector>
 
 namespace pbrt {
@@ -104,18 +105,48 @@ class KdTreeAggregate {
     Bounds3f bounds;
 };
 
+class RandomPrimitiveGenerator {
+
+  public:
+    RandomPrimitiveGenerator(std::vector<Primitive>& prims) :
+        primitives(prims),
+        device(),
+        engine(device()),
+        distribution{0, int(prims.size() - 1)} 
+    {
+    }
+
+    int get() {
+        return distribution(engine);
+    }
+
+    //std::string ToString() {
+    //    return "Maeh";
+    //}
+
+  private:
+    std::vector<Primitive>& primitives;
+    std::random_device device;
+    std::mt19937 engine;
+    std::uniform_int_distribution<int> distribution;
+};
+
+
 class StochasticAggregate {
   public:
-    StochasticAggregate(std::vector<Primitive> p);
-    static StochasticAggregate *Create(std::vector<Primitive> prims,
-                                       const ParameterDictionary &parameters);
+    StochasticAggregate(std::vector<Primitive> p, std::unique_ptr<RandomPrimitiveGenerator> generator);
+    static StochasticAggregate *Create(std::vector<Primitive> prims);
 
     Bounds3f Bounds() const;
     pstd::optional<ShapeIntersection> Intersect(const Ray &ray, Float tMax) const;
     bool IntersectP(const Ray &ray, Float tMax) const;
 
   private:
+    Primitive& getRandomPrimitive();
+
+  private:
     std::vector<Primitive> primitives;
+    std::unique_ptr<RandomPrimitiveGenerator> generator;
 };
 
 }  // namespace pbrt

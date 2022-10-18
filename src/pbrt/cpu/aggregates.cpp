@@ -18,6 +18,9 @@
 #include <algorithm>
 #include <tuple>
 
+#include <iostream> // Temporary
+#include <random>
+
 namespace pbrt {
 
 STAT_MEMORY_COUNTER("Memory/BVH", treeBytes);
@@ -1162,14 +1165,14 @@ KdTreeAggregate *KdTreeAggregate::Create(std::vector<Primitive> prims,
 Primitive CreateAccelerator(const std::string &name, std::vector<Primitive> prims,
                             const ParameterDictionary &parameters) {
     Primitive accel = nullptr;
-    if (name == "bvh")
-        accel = BVHAggregate::Create(std::move(prims), parameters);
-    else if (name == "kdtree")
-        accel = KdTreeAggregate::Create(std::move(prims), parameters);
-    else if (name == "stochastic")
-        accel = StochasticAggregate::Create(std::move(prims), parameters);
-    else
-        ErrorExit("%s: accelerator type unknown.", name);
+    //if (name == "bvh")
+    //    accel = BVHAggregate::Create(std::move(prims), parameters);
+    //else if (name == "kdtree")
+    //    accel = KdTreeAggregate::Create(std::move(prims), parameters);
+    //else if (name == "stochastic")
+        accel = StochasticAggregate::Create(std::move(prims));
+    //else
+    //    ErrorExit("%s: accelerator type unknown.", name);
 
     if (!accel)
         ErrorExit("%s: unable to create accelerator.", name);
@@ -1178,15 +1181,15 @@ Primitive CreateAccelerator(const std::string &name, std::vector<Primitive> prim
     return accel;
 }
 
-StochasticAggregate *StochasticAggregate::Create(std::vector<Primitive> prims,
-                                         const ParameterDictionary &parameters) {
-    return new StochasticAggregate(std::move(prims));
+StochasticAggregate *StochasticAggregate::Create(std::vector<Primitive> prims) {
+    auto generator = std::make_unique<RandomPrimitiveGenerator>(prims);
+    return new StochasticAggregate(std::move(prims), std::move(generator));
 }
 
-StochasticAggregate::StochasticAggregate(std::vector<Primitive> p)
-    : primitives(std::move(p)) {
-
-    // TODO
+StochasticAggregate::StochasticAggregate(std::vector<Primitive> p, std::unique_ptr<RandomPrimitiveGenerator> g)
+    : primitives(std::move(p)),
+      generator(std::move(g))
+{
 }
 
 Bounds3f StochasticAggregate::Bounds() const {
@@ -1194,11 +1197,111 @@ Bounds3f StochasticAggregate::Bounds() const {
     return dummy;
 }
 
+int mapToHundred(float f) {
+    return int((f - int(f)) * 100) % 100;
+}
+
+std::array<int, 3> mapToHundred(const Point3f& p) {
+    std::array<int, 3> a;
+    a[0] = mapToHundred(p.x);
+    a[1] = mapToHundred(p.y);
+    a[2] = mapToHundred(p.z);
+    return a;
+}
+
+std::array<int,3> mapToHundred(const Vector3f& v) {
+    std::array<int, 3> a;
+    a[0] = mapToHundred(v.x);
+    a[1] = mapToHundred(v.y);
+    a[2] = mapToHundred(v.z);
+    return a;
+}
+
+std::array<int, 6> mapToHundred(const Ray& r) {
+    std::array<int, 6> a;
+    auto a1 = mapToHundred(r.o);
+    auto a2 = mapToHundred(r.d);
+    a[0] = a1[0];
+    a[1] = a1[1];
+    a[2] = a1[2];
+    a[3] = a2[0];
+    a[4] = a2[1];
+    a[5] = a2[2];
+    return a;
+}
+
+
+struct RayHash {
+    const float rayMul = 1024;
+
+    std::size_t operator()(const Ray& r) const {
+        //auto values = mapToHundred(r);
+        //auto sum = std::accumulate(values.begin(), values.end(), 0);
+        auto h1 = std::hash<int>{}(int(r.o.x * rayMul));
+        auto h2 = std::hash<int>{}(int(r.o.y * rayMul));
+        auto h3 = std::hash<int>{}(int(r.o.z * rayMul));
+        auto h4 = std::hash<int>{}(int(r.d.x * rayMul));
+        auto h5 = std::hash<int>{}(int(r.d.y * rayMul));
+        auto h6 = std::hash<int>{}(int(r.d.z * rayMul));
+        auto h = h1 ^ (h2 << 1);
+        h = h ^ (h3 << 2);
+        h = h ^ (h4 << 3);
+        h = h ^ (h5 << 4);
+        h = h ^ (h6 << 5);
+        return h;
+    }
+};
+
+struct RayEqual {
+    bool operator()(const Ray& lhs, const Ray& rhs) const {
+        const float eps = 0.001;
+        return
+            fabs(lhs.o.x - rhs.o.x) < eps &&
+            fabs(lhs.o.y - rhs.o.y) < eps &&
+            fabs(lhs.o.z - rhs.o.z) < eps &&
+            fabs(lhs.d.x - rhs.d.x) < eps &&
+            fabs(lhs.d.y - rhs.d.y) < eps &&
+            fabs(lhs.d.z - rhs.d.z) < eps;
+    }
+};
+
+std::unordered_map<Ray, Primitive, RayHash, RayEqual> m;
+std::mutex m_mutex;
+
 pstd::optional<ShapeIntersection> StochasticAggregate::Intersect(const Ray &ray,
                                                                  Float tMax) const {
  
     pstd::optional<ShapeIntersection> si;
 
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    auto it = m.find(ray);
+    //std::cout << "find ray in store: " << ray << std::endl;
+    pstd::optional<ShapeIntersection> primSiStored;
+    if (it != m.end()) {
+        //std::cout << "found stored ray " << it->first << " for actual ray: " << ray << std::endl;
+        auto storedPrimitive = it->second;
+        primSiStored = storedPrimitive.Intersect(ray, tMax);
+    }
+    if (primSiStored) {
+        si = primSiStored;
+        tMax = si->tHit;
+    }
+    int random_int = generator->get();
+    //std::cout << "random int: " << random_int << std::endl;
+    const Primitive& randomPrimitive = primitives[random_int];
+    pstd::optional<ShapeIntersection> primSi = randomPrimitive.Intersect(ray, tMax);
+    if (primSi) {
+        //std::cout << "storing ray: " << ray << std::endl;
+        m[ray] = randomPrimitive;
+        si = primSi;
+        tMax = si->tHit;
+    }
+
+    if (m.size() > 512 * 512 * 512) {
+        m.erase(m.begin());
+    }
+#if 0
     for (auto& primitive : primitives) {
         pstd::optional<ShapeIntersection> primSi =
             primitive.Intersect(ray, tMax);
@@ -1207,6 +1310,8 @@ pstd::optional<ShapeIntersection> StochasticAggregate::Intersect(const Ray &ray,
             tMax = si->tHit;
         }
     }
+#endif
+
     return si;
 }
 
