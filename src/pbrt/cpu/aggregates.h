@@ -104,6 +104,20 @@ class KdTreeAggregate {
     Bounds3f bounds;
 };
 
+class StochasticAggregate {
+  public:
+    StochasticAggregate(std::vector<Primitive> p);
+    static StochasticAggregate *Create(std::vector<Primitive> prims,
+                                       const ParameterDictionary &parameters);
+
+    Bounds3f Bounds() const;
+    pstd::optional<ShapeIntersection> Intersect(const Ray &ray, Float tMax) const;
+    bool IntersectP(const Ray &ray, Float tMax) const;
+
+  private:
+    std::vector<Primitive> primitives;
+};
+
 }  // namespace pbrt
 
 #endif  // PBRT_CPU_AGGREGATES_H

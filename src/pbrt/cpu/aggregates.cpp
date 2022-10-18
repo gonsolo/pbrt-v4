@@ -1166,6 +1166,8 @@ Primitive CreateAccelerator(const std::string &name, std::vector<Primitive> prim
         accel = BVHAggregate::Create(std::move(prims), parameters);
     else if (name == "kdtree")
         accel = KdTreeAggregate::Create(std::move(prims), parameters);
+    else if (name == "stochastic")
+        accel = StochasticAggregate::Create(std::move(prims), parameters);
     else
         ErrorExit("%s: accelerator type unknown.", name);
 
@@ -1175,5 +1177,47 @@ Primitive CreateAccelerator(const std::string &name, std::vector<Primitive> prim
     parameters.ReportUnused();
     return accel;
 }
+
+StochasticAggregate *StochasticAggregate::Create(std::vector<Primitive> prims,
+                                         const ParameterDictionary &parameters) {
+    return new StochasticAggregate(std::move(prims));
+}
+
+StochasticAggregate::StochasticAggregate(std::vector<Primitive> p)
+    : primitives(std::move(p)) {
+
+    // TODO
+}
+
+Bounds3f StochasticAggregate::Bounds() const {
+    Bounds3f dummy;
+    return dummy;
+}
+
+pstd::optional<ShapeIntersection> StochasticAggregate::Intersect(const Ray &ray,
+                                                                 Float tMax) const {
+ 
+    pstd::optional<ShapeIntersection> si;
+
+    for (auto& primitive : primitives) {
+        pstd::optional<ShapeIntersection> primSi =
+            primitive.Intersect(ray, tMax);
+        if (primSi) {
+            si = primSi;
+            tMax = si->tHit;
+        }
+    }
+    return si;
+}
+
+bool StochasticAggregate::IntersectP(const Ray &ray, Float tMax) const {
+    for (auto& primitive : primitives) {
+        if (primitive.IntersectP(ray, tMax)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 }  // namespace pbrt
