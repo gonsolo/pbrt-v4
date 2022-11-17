@@ -57,7 +57,6 @@ Rendering options:
             R"(
   --help                        Print this help text.
   --interactive                 Enable interactive rendering mode.
-  --fullscreen                  Render fullscreen. Only possible with interactive.
   --mse-reference-image         Filename for reference image to use for MSE computation.
   --mse-reference-out           File to write MSE error vs spp results.
   --nthreads <num>              Use specified number of threads for rendering.
