@@ -15,4 +15,5 @@ filter:
 	sed -i 's/ -rdc=true//g' compile_commands.json
 	sed -i 's/ -maxrregcount//g' compile_commands.json
 	sed -i 's/ -forward-unknown-to-host-compiler//g' compile_commands.json
-	#sed -i 's/ //g' compile_commands.json
+	sed -i -e 's/--use_fast_math //g' compile_commands.json
+	sed -i -e 's/-DPBRT_BUILD_GPU_RENDERER //g' compile_commands.json
