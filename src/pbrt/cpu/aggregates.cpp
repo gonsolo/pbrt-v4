@@ -1165,14 +1165,14 @@ KdTreeAggregate *KdTreeAggregate::Create(std::vector<Primitive> prims,
 Primitive CreateAccelerator(const std::string &name, std::vector<Primitive> prims,
                             const ParameterDictionary &parameters) {
     Primitive accel = nullptr;
-    //if (name == "bvh")
-    //    accel = BVHAggregate::Create(std::move(prims), parameters);
-    //else if (name == "kdtree")
-    //    accel = KdTreeAggregate::Create(std::move(prims), parameters);
-    //else if (name == "stochastic")
+    if (name == "bvh")
+        accel = BVHAggregate::Create(std::move(prims), parameters);
+    else if (name == "kdtree")
+        accel = KdTreeAggregate::Create(std::move(prims), parameters);
+    else if (name == "stochastic")
         accel = StochasticAggregate::Create(std::move(prims));
-    //else
-    //    ErrorExit("%s: accelerator type unknown.", name);
+    else
+        ErrorExit("%s: accelerator type unknown.", name);
 
     if (!accel)
         ErrorExit("%s: unable to create accelerator.", name);

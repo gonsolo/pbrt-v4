@@ -8,7 +8,8 @@ build:
 	@ninja
 r: run
 run:
-	@./pbrt --gpu --interactive --fullscreen /home/gonsolo/src/bitterli/cornell-box/scene-v4.pbrt
+	#@./pbrt --gpu --interactive --fullscreen /home/gonsolo/src/bitterli/cornell-box/scene-v4.pbrt
+	@./pbrt --wavefront --interactive /home/gonsolo/src/bitterli/cornell-box/scene-v4.pbrt
 filter:
 	@sed -i 's/ --use_fast_math//g' compile_commands.json
 	@sed -i 's/ --gpu-architecture=sm_86//g' compile_commands.json
