@@ -1,11 +1,11 @@
 all: build
 configure:
-	@CXX="ccache g++-11" cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja ..
+	@CXX="ccache g++" cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja ..
 c: clean
 clean:
 	@git clean -d -f -x
 build:
-	@ninja
+	@mold -run ninja
 r: run
 run:
 	@./pbrt --gpu --interactive --fullscreen /home/gonsolo/src/bitterli/cornell-box/scene-v4.pbrt
