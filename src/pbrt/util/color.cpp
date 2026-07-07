@@ -67,27 +67,38 @@ PBRT_CPU_GPU RGBSigmoidPolynomial RGBToSpectrumTable::operator()(RGB rgb) const 
     return RGBSigmoidPolynomial(c[0], c[1], c[2]);
 }
 
+// Workaround for an nvcc CUDA-frontend bug: it fails to resolve
+// RGBToSpectrumTable::res when RGBToSpectrumTable::CoefficientArray (a type
+// alias depending on that sibling static constexpr member) is used in an
+// out-of-class extern declaration, even though the identical construct
+// compiles fine under g++/clang. Spelling the array type out explicitly via
+// the qualified RGBToSpectrumTable::res sidesteps the bug; the generated
+// rgbspectrum_*.cpp definitions already use this same literal array type.
 extern const int sRGBToSpectrumTable_Res;
 extern const float sRGBToSpectrumTable_Scale[64];
-extern const RGBToSpectrumTable::CoefficientArray sRGBToSpectrumTable_Data;
+extern const float sRGBToSpectrumTable_Data[3][RGBToSpectrumTable::res][RGBToSpectrumTable::res]
+                                            [RGBToSpectrumTable::res][3];
 
 const RGBToSpectrumTable *RGBToSpectrumTable::sRGB;
 
 extern const int DCI_P3ToSpectrumTable_Res;
 extern const float DCI_P3ToSpectrumTable_Scale[64];
-extern const RGBToSpectrumTable::CoefficientArray DCI_P3ToSpectrumTable_Data;
+extern const float DCI_P3ToSpectrumTable_Data[3][RGBToSpectrumTable::res][RGBToSpectrumTable::res]
+                                              [RGBToSpectrumTable::res][3];
 
 const RGBToSpectrumTable *RGBToSpectrumTable::DCI_P3;
 
 extern const int REC2020ToSpectrumTable_Res;
 extern const float REC2020ToSpectrumTable_Scale[64];
-extern const RGBToSpectrumTable::CoefficientArray REC2020ToSpectrumTable_Data;
+extern const float REC2020ToSpectrumTable_Data[3][RGBToSpectrumTable::res][RGBToSpectrumTable::res]
+                                               [RGBToSpectrumTable::res][3];
 
 const RGBToSpectrumTable *RGBToSpectrumTable::Rec2020;
 
 extern const int ACES2065_1ToSpectrumTable_Res;
 extern const float ACES2065_1ToSpectrumTable_Scale[64];
-extern const RGBToSpectrumTable::CoefficientArray ACES2065_1ToSpectrumTable_Data;
+extern const float ACES2065_1ToSpectrumTable_Data[3][RGBToSpectrumTable::res]
+                                                  [RGBToSpectrumTable::res][RGBToSpectrumTable::res][3];
 
 const RGBToSpectrumTable *RGBToSpectrumTable::ACES2065_1;
 
